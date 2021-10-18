@@ -7,4 +7,5 @@ Le broker MQTT de TTN CE publie alors toutes les alertes, instantanément récup
 Afin d’identifier une éventuelles panne de capteur, les « preuves de vie » émises par les capteurs sont analysées régulièrement. Dès qu’une « preuve de vie » manque, un message de panne est envoyé par e-mail.
 
 - NodeRED, InfluxDB et Grafana tournent dans une version supervised de « Home Assistant ».
+- Passerelle utilisée: LPS8 Indoor LoRaWAN Gateway.
 - Capteurs utilisés: Dragino LWL02. 
