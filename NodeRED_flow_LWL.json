@@ -1,0 +1,381 @@
+[
+  {
+    "id": "8c5c62e7.f4ae3",
+    "type": "tab",
+    "label": "LWL",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "323fad0db21a6c2c",
+    "type": "mqtt in",
+    "z": "8c5c62e7.f4ae3",
+    "name": "lwl01",
+    "topic": "#",
+    "qos": "0",
+    "datatype": "json",
+    "broker": "4ed90ba1.5c5184",
+    "nl": false,
+    "rap": false,
+    "rh": "0",
+    "x": 250,
+    "y": 300,
+    "wires": [
+      [
+        "9e5d085a50039045"
+      ]
+    ]
+  },
+  {
+    "id": "cb91dfcef6dbf2c0",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "extract",
+    "func": "// extract\nvar device_id = msg.payload.end_device_ids.device_id;\nvar BAT_V = msg.payload.uplink_message.decoded_payload.BAT_V;\nvar MOD = msg.payload.uplink_message.decoded_payload.MOD;\nvar WATER_LEAK_STATUS = msg.payload.uplink_message.decoded_payload.WATER_LEAK_STATUS;\nvar LAST_WATER_LEAK_DURATION = msg.payload.uplink_message.decoded_payload.LAST_WATER_LEAK_DURATION;\nvar WATER_LEAK_TIMES = msg.payload.uplink_message.decoded_payload.WATER_LEAK_TIMES;\nvar consumed_airtime = msg.payload.uplink_message.consumed_airtime;\nvar bandwidth = msg.payload.uplink_message.settings.data_rate.lora.bandwidth;\nvar spreading_factor = msg.payload.uplink_message.settings.data_rate.lora.spreading_factor;\nvar frequency = msg.payload.uplink_message.settings.frequency;\nvar gateway_id = msg.payload.uplink_message.rx_metadata[0].gateway_ids.gateway_id;\nvar rssi = msg.payload.uplink_message.rx_metadata[0].rssi;\nvar snr = msg.payload.uplink_message.rx_metadata[0].snr;\nvar f_cnt = msg.payload.uplink_message.f_cnt;\n\n// store last device Node-RED timestamp\nvar device_timestamp = device_id + \"_latest_timestamp\";\nvar currentDate = new Date();\nvar timestamp = currentDate.getTime();\nflow.set(device_timestamp, timestamp);\n\n// payload\nmsg.payload = [{\n    bat: BAT_V,\n    mod: MOD,\n    status: WATER_LEAK_STATUS,\n    duration: LAST_WATER_LEAK_DURATION,\n    times: WATER_LEAK_TIMES,\n    airtime: consumed_airtime,\n    bandwidth: bandwidth,\n    sf: spreading_factor,\n    frequency: Number(frequency)/1000000,\n    gateway: gateway_id,\n    rssi: rssi,\n    snr: snr,\n    cnt: f_cnt\n},\n{\n    sensor: device_id\n}];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 530,
+    "y": 300,
+    "wires": [
+      [
+        "26e7c271d8a54edb",
+        "01b89fc88b298856"
+      ]
+    ]
+  },
+  {
+    "id": "9b0b9fec1e9445b4",
+    "type": "switch",
+    "z": "8c5c62e7.f4ae3",
+    "name": "state",
+    "property": "payload[0].status",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "eq",
+        "v": "1",
+        "vt": "num"
+      },
+      {
+        "t": "eq",
+        "v": "0",
+        "vt": "num"
+      }
+    ],
+    "checkall": "false",
+    "repair": false,
+    "outputs": 2,
+    "x": 750,
+    "y": 220,
+    "wires": [
+      [
+        "ec96ddbb14a7a780",
+        "2572dab3bc4268ef"
+      ],
+      [
+        "f17605f42bd22fa3"
+      ]
+    ]
+  },
+  {
+    "id": "ec96ddbb14a7a780",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "write alert",
+    "func": "// get variable from payload\nvar sensor = msg.payload[1].sensor;\n\n// explicit sensor label\nswitch (sensor) {\n    case \"lwl02-01\":\n        sensor = \"extérieur (\" + sensor + \")\";\n        break;\n    case \"lwl02-02\":\n        sensor = \"entrée garage (\" + sensor + \")\";\n        break;\n    case \"lwl02-03\":\n        sensor = \"entrée vélos (\" + sensor + \")\";\n        break;\n}\n\n// message recipients\nmsg.to = \"email@ik.me\"\nmsg.bcc = \"email@ik.me, email@ik.me, email@ik.me, email@ik.me\"\nmsg.from = \"email@ik.me\"\n\n// write alarm subject and plain text\nmsg.topic = \"A L E R T E   I N O N D A T I O N\";\nmsg.payload = \"Le capteur \" + sensor + \" indique une possible inondation au sein de la PPE Au Coeur de la Cité.\";\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 920,
+    "y": 200,
+    "wires": [
+      [
+        "74da21f3951610f1"
+      ]
+    ]
+  },
+  {
+    "id": "74da21f3951610f1",
+    "type": "e-mail",
+    "z": "8c5c62e7.f4ae3",
+    "server": "mail.infomaniak.com",
+    "port": "465",
+    "secure": true,
+    "tls": true,
+    "name": "",
+    "dname": "send mail",
+    "x": 1100,
+    "y": 240,
+    "wires": [
+
+    ]
+  },
+  {
+    "id": "f17605f42bd22fa3",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "write info",
+    "func": "// get variable from payload\nvar sensor = msg.payload[1].sensor;\n\n// explicit sensor label\nswitch (sensor) {\n    case \"lwl02-01\":\n        sensor = \"extérieur (\" + sensor + \")\";\n        break;\n    case \"lwl02-02\":\n        sensor = \"entrée garage (\" + sensor + \")\";\n        break;\n    case \"lwl02-03\":\n        sensor = \"entrée vélos (\" + sensor + \")\";\n        break;\n}\n\n// message recipients\nmsg.to = \"email@ik.me\"\nmsg.bcc = \"email@ik.me, email@ik.me, email@ik.me, email@ik.me\"\nmsg.from = \"email@ik.me\"\n\n// write info subject and plain text\nmsg.topic = \"F I N   D ' A L E R T E\";\nmsg.payload = \"Le capteur \" + sensor + \" indique qu'il fonctionne correctement et qu'aucune inondation n'est détectée actuellement.\";\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 920,
+    "y": 240,
+    "wires": [
+      [
+        "74da21f3951610f1"
+      ]
+    ]
+  },
+  {
+    "id": "948f90a7627188c1",
+    "type": "inject",
+    "z": "8c5c62e7.f4ae3",
+    "name": "8 h",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "28800",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "30",
+    "topic": "",
+    "payloadType": "date",
+    "x": 390,
+    "y": 380,
+    "wires": [
+      [
+        "0cf1abbcc29e633c"
+      ]
+    ]
+  },
+  {
+    "id": "0cf1abbcc29e633c",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "alive ?",
+    "func": "// get timestamp\nvar now_timestamp = msg.payload;\n    \n// set tolerance in ms\nvar timestamp_tolerance = 100000000;\n\n// check if tolerance is overwitten (breakdown)\nvar msg1 = null;\nif ((now_timestamp - flow.get(\"lwl02-01_latest_timestamp\")) > timestamp_tolerance) {\n    msg1 = \"lwl02-01\";\n}\nvar msg2 = null;\nif ((now_timestamp - flow.get(\"lwl02-02_latest_timestamp\")) > timestamp_tolerance) {\n    msg2 = \"lwl02-02\";\n}\nvar msg3 = null;\nif ((now_timestamp - flow.get(\"lwl02-03_latest_timestamp\")) > timestamp_tolerance) {\n    msg3 = \"lwl02-03\";\n}\n\nreturn [ {payload: msg1}, {payload: msg2}, {payload: msg3} ];",
+    "outputs": 3,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 530,
+    "y": 380,
+    "wires": [
+      [
+        "947bca5752adfb29"
+      ],
+      [
+        "947bca5752adfb29"
+      ],
+      [
+        "947bca5752adfb29"
+      ]
+    ]
+  },
+  {
+    "id": "947bca5752adfb29",
+    "type": "switch",
+    "z": "8c5c62e7.f4ae3",
+    "name": "breakdown",
+    "property": "payload",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "nnull"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 730,
+    "y": 380,
+    "wires": [
+      [
+        "d181978e1a91bc1e"
+      ]
+    ]
+  },
+  {
+    "id": "d181978e1a91bc1e",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "write alert",
+    "func": "// get variable from payload\nvar sensor = msg.payload;\n\n// explicit sensor label\nswitch (sensor) {\n    case \"lwl02-01\":\n        sensor = \"extérieur (\" + sensor + \")\";\n        break;\n    case \"lwl02-02\":\n        sensor = \"entrée garage (\" + sensor + \")\";\n        break;\n    case \"lwl02-03\":\n        sensor = \"entrée vélos (\" + sensor + \")\";\n        break;\n}\n\n// message recipients\nmsg.to = \"email@ik.me\"\nmsg.from = \"email@ik.me\"\n\n// write info subject and plain text\nmsg.topic = \"P A N N E\";\nmsg.payload = \"Le capteur \" + sensor + \" semble manquer à l'appel depuis plus de 24 heures.\";\n\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 920,
+    "y": 380,
+    "wires": [
+      [
+        "74da21f3951610f1"
+      ]
+    ]
+  },
+  {
+    "id": "9e5d085a50039045",
+    "type": "switch",
+    "z": "8c5c62e7.f4ae3",
+    "name": "filter",
+    "property": "payload.uplink_message.decoded_payload.MOD",
+    "propertyType": "msg",
+    "rules": [
+      {
+        "t": "eq",
+        "v": "2",
+        "vt": "num"
+      }
+    ],
+    "checkall": "true",
+    "repair": false,
+    "outputs": 1,
+    "x": 390,
+    "y": 300,
+    "wires": [
+      [
+        "cb91dfcef6dbf2c0"
+      ]
+    ]
+  },
+  {
+    "id": "01b89fc88b298856",
+    "type": "rbe",
+    "z": "8c5c62e7.f4ae3",
+    "name": "RBE",
+    "func": "rbe",
+    "gap": "",
+    "start": "",
+    "inout": "out",
+    "septopics": true,
+    "property": "payload[0].status",
+    "topi": "payload[1].sensor",
+    "x": 655,
+    "y": 220,
+    "wires": [
+      [
+        "9b0b9fec1e9445b4"
+      ]
+    ],
+    "l": false
+  },
+  {
+    "id": "2572dab3bc4268ef",
+    "type": "function",
+    "z": "8c5c62e7.f4ae3",
+    "name": "write alert",
+    "func": "// get variable from payload\nvar sensor = msg.payload[1].sensor;\n\n// explicit sensor label\nswitch (sensor) {\n    case \"lwl02-01\":\n        sensor = \"extérieur (\" + sensor + \")\";\n        break;\n    case \"lwl02-02\":\n        sensor = \"entrée garage (\" + sensor + \")\";\n        break;\n    case \"lwl02-03\":\n        sensor = \"entrée vélos (\" + sensor + \")\";\n        break;\n}\n\n// phone numbers\nvar lot_4_bernard = \"41790000000\";\nvar lot_7_samuel = \"41790000000\";\nvar lot_8_daniel = \"41790000000\";\nvar lot_10_eduardo = \"41790000000\";\n\n// SMSup API token\nvar token = \"yourAPItoken\"\n\nmsg.method = \"POST\";\nmsg.url = \"api.smsup.ch\";\nmsg.headers = {\n    \"Authorization\": \"Bearer \" + token,\n    \"Accept\": \"application/json\"\n};\nmsg.payload = {\n    \"sms\": {\n        \"message\": {\n            \"text\": \"A L E R T E   I N O N D A T I O N - Le capteur \" + sensor + \" indique une possible inondation au sein de la PPE Au Coeur de la Cité.\",\n            \"pushtype\": \"alert\",\n            \"sender\": \"alertPPE\"\n        },\n        \"recipients\": {\n            \"gsm\": [\n                {\"value\": lot_4_bernard},\n                {\"value\": lot_7_samuel},\n                {\"value\": lot_8_daniel},\n                {\"value\": lot_10_eduardo}\n            ]\n        }\n    }\n};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [
+
+    ],
+    "x": 920,
+    "y": 160,
+    "wires": [
+      [
+        "0d2473c41df70fe9"
+      ]
+    ]
+  },
+  {
+    "id": "0d2473c41df70fe9",
+    "type": "http request",
+    "z": "8c5c62e7.f4ae3",
+    "name": "SMS",
+    "method": "use",
+    "ret": "obj",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "authType": "",
+    "x": 1090,
+    "y": 160,
+    "wires": [
+      [
+
+      ]
+    ]
+  },
+  {
+    "id": "26e7c271d8a54edb",
+    "type": "influxdb out",
+    "z": "8c5c62e7.f4ae3",
+    "influxdb": "61ca11d.919d97",
+    "name": "store data into InfluxDB",
+    "measurement": "lwl01",
+    "precision": "",
+    "retentionPolicy": "",
+    "database": "ppe",
+    "precisionV18FluxV20": "ms",
+    "retentionPolicyV18Flux": "",
+    "org": "organisation",
+    "bucket": "bucket",
+    "x": 870,
+    "y": 300,
+    "wires": [
+
+    ]
+  },
+  {
+    "id": "4ed90ba1.5c5184",
+    "type": "mqtt-broker",
+    "name": "lwl01@ttn",
+    "broker": "eu1.cloud.thethings.network",
+    "port": "1883",
+    "clientid": "",
+    "usetls": false,
+    "compatmode": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthRetain": "false",
+    "birthPayload": "",
+    "birthMsg": {
+
+    },
+    "closeTopic": "",
+    "closeQos": "0",
+    "closeRetain": "false",
+    "closePayload": "",
+    "closeMsg": {
+
+    },
+    "willTopic": "",
+    "willQos": "0",
+    "willRetain": "false",
+    "willPayload": "",
+    "willMsg": {
+
+    },
+    "sessionExpiry": ""
+  }
+]
